@@ -73,7 +73,7 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         let saveImageButtonWidth = saveImageButton.frame.width
         saveImageButton.frame = CGRect(x: 30, y: UIScreen.main.bounds.height-80, width: 32, height: 32)
         saveImageButton.setBackgroundImage(UIImage(named: "download"), for: .normal)
-        //saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
+        saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
         
         // scroll view configuration
         delegate = self
@@ -255,11 +255,10 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         //imageView.addSubview(saveImageButton)
     }
     
-    func saveImage() {
-        
-         UIImageWriteToSavedPhotosAlbum(self.imageView.image!, self, "image:didFinishSavingWithError:contextInfo:", nil)  //save the image
+    func saveImage() {  
+	UIImageWriteToSavedPhotosAlbum(self.imageView.image!, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
     }
-    func image(image: UIImage!, didFinishSavingWithError error: NSError!, contextInfo: AnyObject!) {
+    func image(_ image: UIImage!, didFinishSavingWithError error: NSError!, contextInfo: AnyObject!) {
         if (error != nil) {
             // Something wrong happened.
             print("not saved")
