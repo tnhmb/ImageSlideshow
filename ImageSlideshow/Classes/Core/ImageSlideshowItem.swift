@@ -255,7 +255,7 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         //imageView.addSubview(saveImageButton)
     }
     
-    func saveImage() {  
+    func saveImage(_ sender: AnyObject) {  
 	 UIImageWriteToSavedPhotosAlbum(self.imageView.image!, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
     }
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
