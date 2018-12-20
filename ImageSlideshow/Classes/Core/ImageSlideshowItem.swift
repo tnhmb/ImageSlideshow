@@ -5,40 +5,69 @@
 //  Created by Petr Zvoníček on 30.07.15.
 //
 
+
 import UIKit
 
-public class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
-    
+/// Used to wrap a single slideshow item and allow zooming on it
+@objcMembers
+open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
+
+    /// Image view to hold the image
     public let imageView = UIImageView()
+
+    /// Activity indicator shown during image loading, when nil there won't be shown any
+    public let activityIndicator: ActivityIndicatorView?
+
+    /// Input Source for the item
     public let image: InputSource
-    public var gestureRecognizer: UITapGestureRecognizer?
-    
+
+    /// Guesture recognizer to detect double tap to zoom
+    open var gestureRecognizer: UITapGestureRecognizer?
+
+    /// Holds if the zoom feature is enabled
     public let zoomEnabled: Bool
-    public var zoomInInitially = false
+
+    /// If set to true image is initially zoomed in
+    open var zoomInInitially = false
     
-    //
-    private var lastFrame = CGRectZero
-    
+    /// Maximum zoom scale
+    open var maximumScale: CGFloat = 2.0
+
+    fileprivate var lastFrame = CGRect.zero
+    fileprivate var imageReleased = false
+    fileprivate var isLoading = false
+    fileprivate var singleTapGestureRecognizer: UITapGestureRecognizer?
+    fileprivate var loadFailed = false {
+        didSet {
+            singleTapGestureRecognizer?.isEnabled = loadFailed
+            gestureRecognizer?.isEnabled = !loadFailed
+        }
+    }
+
     // MARK: - Life cycle
-    
-    init(image: InputSource, zoomEnabled: Bool) {
+    /**
+        Initializes a new ImageSlideshowItem
+        - parameter image: Input Source to load the image
+        - parameter zoomEnabled: holds if it should be possible to zoom-in the image
+    */
+    init(image: InputSource, zoomEnabled: Bool, activityIndicator: ActivityIndicatorView? = nil, maximumScale: CGFloat = 2.0) {
         self.zoomEnabled = zoomEnabled
         self.image = image
-        
-        super.init(frame: CGRectNull)
-        
-        image.setToImageView(imageView)
-        
+        self.activityIndicator = activityIndicator
+        self.maximumScale = maximumScale
+
+        super.init(frame: CGRect.null)
+
         imageView.clipsToBounds = true
-        imageView.userInteractionEnabled = true
-        
+        imageView.isUserInteractionEnabled = true
+
         setPictoCenter()
-        
+
         //set up the button
-        let screenWidth = UIScreen.mainScreen().bounds.width
+		let screenWidth = UIScreen.mainScreen().bounds.width
         let saveImageButtonWidth = saveImageButton.frame.width
         saveImageButton.frame = CGRectMake(screenWidth - 50, 20, 40, 40)
-        saveImageButton.setBackgroundImage(UIImage(named: "options"), forState: UIControlState.Normal)
+        saveImageButton.setBackgroundImage(UIImage(named: "download"), forState: UIControlState.Normal)
         saveImageButton.addTarget(self, action: #selector(ImageSlideshowItem.saveImage), forControlEvents: UIControlEvents.TouchUpInside)
         
         // scroll view configuration
@@ -48,94 +77,137 @@ public class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         addSubview(imageView)
         minimumZoomScale = 1.0
         maximumZoomScale = calculateMaximumScale()
-        
+
+        if let activityIndicator = activityIndicator {
+            addSubview(activityIndicator.view)
+        }
+
         // tap gesture recognizer
         let tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(ImageSlideshowItem.tapZoom))
         tapRecognizer.numberOfTapsRequired = 2
         imageView.addGestureRecognizer(tapRecognizer)
         gestureRecognizer = tapRecognizer
+
+        singleTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(retryLoadImage))
+        singleTapGestureRecognizer!.numberOfTapsRequired = 1
+        singleTapGestureRecognizer!.isEnabled = false
+        imageView.addGestureRecognizer(singleTapGestureRecognizer!)
     }
-    
+
     required public init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
-    override public func layoutSubviews() {
+
+    override open func layoutSubviews() {
         super.layoutSubviews()
-        
+
         if !zoomEnabled {
-            imageView.frame.size = frame.size;
+            imageView.frame.size = frame.size
         } else if !isZoomed() {
             imageView.frame.size = calculatePictureSize()
-            setPictoCenter()
         }
-        
+
         if isFullScreen() {
             clearContentInsets()
         } else {
             addSaveImageButton()  //add the button to the image only when is fullscreen
             setPictoCenter()
         }
-        
+
+        self.activityIndicator?.view.center = imageView.center
+
         // if self.frame was changed and zoomInInitially enabled, zoom in
         if lastFrame != frame && zoomInInitially {
             setZoomScale(maximumZoomScale, animated: false)
         }
-        
+
         lastFrame = self.frame
-        
+
         contentSize = imageView.frame.size
         maximumZoomScale = calculateMaximumScale()
     }
+
+    /// Request to load Image Source to Image View
+    public func loadImage() {
+        if self.imageView.image == nil && !isLoading {
+            isLoading = true
+            imageReleased = false
+            activityIndicator?.show()
+            image.load(to: self.imageView) {[weak self] image in
+                // set image to nil if there was a release request during the image load
+                if let imageRelease = self?.imageReleased, imageRelease {
+                    self?.imageView.image = nil
+                }else{
+                    self?.imageView.image = image
+                }
+                self?.activityIndicator?.hide()
+                self?.loadFailed = image == nil
+                self?.isLoading = false
+            }
+        }
+    }
     
+    func releaseImage() {
+        imageReleased = true
+        cancelPendingLoad()
+        self.imageView.image = nil
+    }
+    
+    public func cancelPendingLoad() {
+        image.cancelLoad?(on: imageView)
+    }
+
+    @objc func retryLoadImage() {
+        self.loadImage()
+    }
+
     // MARK: - Image zoom & size
-    
     func isZoomed() -> Bool {
         return self.zoomScale != self.minimumZoomScale
     }
-    
+
     func zoomOut() {
         self.setZoomScale(minimumZoomScale, animated: false)
     }
-    
-    func tapZoom() {
+
+    @objc func tapZoom() {
         if isZoomed() {
             self.setZoomScale(minimumZoomScale, animated: true)
         } else {
             self.setZoomScale(maximumZoomScale, animated: true)
         }
     }
-    
-    private func screenSize() -> CGSize {
+
+    fileprivate func screenSize() -> CGSize {
         return CGSize(width: frame.width, height: frame.height)
     }
-    
-    private func calculatePictureFrame() {
+
+    fileprivate func calculatePictureFrame() {
         let boundsSize: CGSize = bounds.size
         var frameToCenter: CGRect = imageView.frame
-        
+
         if frameToCenter.size.width < boundsSize.width {
             frameToCenter.origin.x = (boundsSize.width - frameToCenter.size.width) / 2
         } else {
             frameToCenter.origin.x = 0
         }
-        
+
         if frameToCenter.size.height < boundsSize.height {
             frameToCenter.origin.y = (boundsSize.height - frameToCenter.size.height) / 2
         } else {
             frameToCenter.origin.y = 0
         }
-        
+
         imageView.frame = frameToCenter
     }
-    
-    private func calculatePictureSize() -> CGSize {
-        if let image = imageView.image {
+
+    fileprivate func calculatePictureSize() -> CGSize {
+        if let image = imageView.image, imageView.contentMode == .scaleAspectFit {
             let picSize = image.size
             let picRatio = picSize.width / picSize.height
             let screenRatio = screenSize().width / screenSize().height
-            
-            if (picRatio > screenRatio){
+
+            if picRatio > screenRatio {
                 return CGSize(width: screenSize().width, height: screenSize().width / picSize.width * picSize.height)
             } else {
                 return CGSize(width: screenSize().height / picSize.height * picSize.width, height: screenSize().height)
@@ -144,48 +216,43 @@ public class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
             return CGSize(width: screenSize().width, height: screenSize().height)
         }
     }
-    
-    private func calculateMaximumScale() -> CGFloat {
-        // maximum scale is fixed to 2.0 for now. This may be overriden to perform a more sophisticated computation
-        return 2.0
+
+    fileprivate func calculateMaximumScale() -> CGFloat {
+        return maximumScale
     }
-    
-    private func setPictoCenter(){
+
+    fileprivate func setPictoCenter() {
         var intendHorizon = (screenSize().width - imageView.frame.width ) / 2
         var intendVertical = (screenSize().height - imageView.frame.height ) / 2
         intendHorizon = intendHorizon > 0 ? intendHorizon : 0
         intendVertical = intendVertical > 0 ? intendVertical : 0
         contentInset = UIEdgeInsets(top: intendVertical, left: intendHorizon, bottom: intendVertical, right: intendHorizon)
     }
-    
+
     private func isFullScreen() -> Bool {
         return imageView.frame.width >= screenSize().width && imageView.frame.height >= screenSize().height
     }
-    
-    func clearContentInsets(){
+
+    func clearContentInsets() {
         contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
     }
-    
+
     // MARK: UIScrollViewDelegate
-    
-    public func scrollViewDidZoom(scrollView: UIScrollView) {
+    open func scrollViewDidZoom(_ scrollView: UIScrollView) {
         setPictoCenter()
     }
-    
-    public func viewForZoomingInScrollView(scrollView: UIScrollView) -> UIView? {
-        return zoomEnabled ? imageView : nil;
+
+    open func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return zoomEnabled ? imageView : nil
     }
     
     public func addSaveImageButton(){
-        
-        
         imageView.addSubview(saveImageButton)
-        
     }
     
     func saveImage() {
         
-        UIImageWriteToSavedPhotosAlbum(self.imageView.image!, self, "image:didFinishSavingWithError:contextInfo:", nil)  //save the image
+         UIImageWriteToSavedPhotosAlbum(self.imageView.image!, self, "image:didFinishSavingWithError:contextInfo:", nil)  //save the image
     }
     func image(image: UIImage!, didFinishSavingWithError error: NSError!, contextInfo: AnyObject!) {
         if (error != nil) {
@@ -194,10 +261,8 @@ public class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         } else {
             // Everything is alright. Here it has to be an alert that will notify the user that the image is saved.
             // Tried but it was super hard. I will submit it though If anyone wants to try out.
-            // Possible to make other functions like "Delete Image", "Report Image" etc. That's why the icon is an "Options" icon.
+			// Possible to make other functions like "Delete Image", "Report Image" etc. That's why the icon is an "Options" icon.
             
         }
     }
-    
-    
 }
