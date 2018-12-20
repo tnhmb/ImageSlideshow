@@ -69,10 +69,14 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
 
         //set up the button
         let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = bounds.size.height
+        print("screen height \(frame.height)")
+        print("screen bound maxY - 80 \(UIScreen.main.bounds.maxY-UIScreen.main.bounds.midY)")
         let saveImageButtonWidth = saveImageButton.frame.width
-        saveImageButton.frame = CGRect(x: 30, y: 70, width: 32, height: 32)
+        saveImageButton.frame = CGRect(x: 30, y: UIScreen.main.bounds.maxY, width: 32, height: 32)
         saveImageButton.setBackgroundImage(UIImage(named: "download"), for: .normal)
         saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
+        
         
         // scroll view configuration
         delegate = self
@@ -96,6 +100,10 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         singleTapGestureRecognizer!.numberOfTapsRequired = 1
         singleTapGestureRecognizer!.isEnabled = false
         imageView.addGestureRecognizer(singleTapGestureRecognizer!)
+        
+        let holdTap = UILongPressGestureRecognizer(target: self, action: #selector(handleHoldGesture))
+        holdTap.minimumPressDuration = 0.5
+        imageView.addGestureRecognizer(holdTap)
     }
 
     required public init?(coder aDecoder: NSCoder) {
@@ -174,6 +182,12 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         self.setZoomScale(minimumZoomScale, animated: false)
     }
 
+    @objc func handleHoldGesture(_ sender: UILongPressGestureRecognizer){
+        if sender.state == .began {
+            showScreenshotEffect()
+            saveImage(sender)
+        }
+    }
     @objc func tapZoom() {
         if isZoomed() {
             self.setZoomScale(minimumZoomScale, animated: true)
@@ -181,7 +195,32 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
             self.setZoomScale(maximumZoomScale, animated: true)
         }
     }
-
+    func showScreenshotEffect() {
+        
+        let snapshotView = UIView()
+        snapshotView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(snapshotView)
+        
+        if #available(iOS 9.0, *) {
+            let constraints:[NSLayoutConstraint] = [
+                snapshotView.topAnchor.constraint(equalTo: topAnchor),
+                snapshotView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                snapshotView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                snapshotView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ]
+        } else {
+            // Fallback on earlier versions
+        }
+        NSLayoutConstraint.activate(constraints)
+        
+        snapshotView.backgroundColor = UIColor.white
+        
+        UIView.animate(withDuration: 0.2, animations: {
+            snapshotView.alpha = 0
+        }) { _ in
+            snapshotView.removeFromSuperview()
+        }
+    }
     fileprivate func screenSize() -> CGSize {
         return CGSize(width: frame.width, height: frame.height)
     }
@@ -251,7 +290,8 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
     }
     
     public func addSaveImageButton(){
-        imageView.addSubview(saveImageButton)
+        //imageView.addSubview(saveImageButton)
+        //UIApplication.shared.keyWindow!.bringSubviewToFront(saveImageButton)
     }
     
     @objc func saveImage(_ sender: AnyObject) {  
@@ -264,10 +304,7 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
             // Something wrong happened.
             print("not saved")
         } else {
-            // Everything is alright. Here it has to be an alert that will notify the user that the image is saved.
-            // Tried but it was super hard. I will submit it though If anyone wants to try out.
-			// Possible to make other functions like "Delete Image", "Report Image" etc. That's why the icon is an "Options" icon.
-            
+            //self.window?.rootViewController?.dismiss(animated: true, completion: nil)
         }
     }
 }
