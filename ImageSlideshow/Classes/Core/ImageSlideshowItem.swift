@@ -252,7 +252,7 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
     }
     
     public func addSaveImageButton(){
-        imageView.addSubview(saveImageButton)
+        //imageView.addSubview(saveImageButton)
     }
     
     func saveImage() {
