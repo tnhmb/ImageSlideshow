@@ -73,7 +73,7 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         let saveImageButtonWidth = saveImageButton.frame.width
         saveImageButton.frame = CGRect(x: 30, y: UIScreen.main.bounds.height-80, width: 32, height: 32)
         saveImageButton.setBackgroundImage(UIImage(named: "download"), for: .normal)
-        saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
+        //saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
         
         // scroll view configuration
         delegate = self
