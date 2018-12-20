@@ -33,6 +33,11 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
     /// Maximum zoom scale
     open var maximumScale: CGFloat = 2.0
 
+	let saveImageButton: UIButton = {
+        let btn = UIButton(frame: CGRect(x: 0, y: 0, width: 32, height: 32))
+        return btn
+    }()
+	
     fileprivate var lastFrame = CGRect.zero
     fileprivate var imageReleased = false
     fileprivate var isLoading = false
@@ -64,11 +69,11 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
         setPictoCenter()
 
         //set up the button
-		let screenWidth = UIScreen.mainScreen().bounds.width
+        let screenWidth = UIScreen.main.bounds.width
         let saveImageButtonWidth = saveImageButton.frame.width
-        saveImageButton.frame = CGRectMake(screenWidth - 50, 20, 40, 40)
-        saveImageButton.setBackgroundImage(UIImage(named: "download"), forState: UIControlState.Normal)
-        saveImageButton.addTarget(self, action: #selector(ImageSlideshowItem.saveImage), forControlEvents: UIControlEvents.TouchUpInside)
+        saveImageButton.frame = CGRect(x: 30, y: UIScreen.main.bounds.height-80, width: 32, height: 32)
+        saveImageButton.setBackgroundImage(UIImage(named: "download"), for: .normal)
+        saveImageButton.addTarget(self, action: #selector(saveImage), for: .touchUpInside)
         
         // scroll view configuration
         delegate = self
