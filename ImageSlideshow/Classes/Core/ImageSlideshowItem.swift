@@ -6,7 +6,7 @@
 //
 
 import UIKit
-
+import AVFoundation
 /// Used to wrap a single slideshow item and allow zooming on it
 open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
     
@@ -307,7 +307,9 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
             //imageView.alpha = 0.0
             UIView.animate(withDuration: 0.5, animations: {
                 //show loading
+                AudioServicesPlaySystemSound (1108)
                 self.imageView.alpha = 0.0
+                
             }) { (completed) in
                 //hide loading
                 self.imageView.alpha = 1.0
