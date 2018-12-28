@@ -304,19 +304,43 @@ open class ImageSlideshowItem: UIScrollView, UIScrollViewDelegate {
             // Something wrong happened.
             print("not saved")
         } else {
-            //imageView.alpha = 0.0
+            let alert = UIAlertController(title: nil, message: "Image Saved!", preferredStyle: .alert)
             UIView.animate(withDuration: 0.5, animations: {
                 //show loading
                 AudioServicesPlaySystemSound (1108)
                 self.imageView.alpha = 0.0
+                alert.show()
                 
             }) { (completed) in
                 //hide loading
+                alert.dismiss(animated: true, completion: nil)
                 self.imageView.alpha = 1.0
             }
-//            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//                self.imageView.alpha = 1.0
-//            }
+
         }
     }
+}
+public extension UIAlertController {
+    func show() {
+        present(animated: true, completion: nil)
+    }
+    
+    func present(animated: Bool, completion: (() -> Void)?) {
+        if let rootVC = UIApplication.shared.keyWindow?.rootViewController {
+            presentFromController(controller: rootVC, animated: animated, completion: completion)
+        }
+    }
+    
+    private func presentFromController(controller: UIViewController, animated: Bool, completion: (() -> Void)?) {
+        if let navVC = controller as? UINavigationController,
+            let visibleVC = navVC.visibleViewController {
+            presentFromController(controller: visibleVC, animated: animated, completion: completion)
+        } else
+            if let tabVC = controller as? UITabBarController,
+                let selectedVC = tabVC.selectedViewController {
+                presentFromController(controller: selectedVC, animated: animated, completion: completion)
+            } else {
+                controller.present(self, animated: animated, completion: completion);
+        }
+}
 }
